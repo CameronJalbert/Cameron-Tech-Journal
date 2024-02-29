@@ -1,2 +1,1 @@
-hostname
-this is mgmt
+mgmt01-cameron
