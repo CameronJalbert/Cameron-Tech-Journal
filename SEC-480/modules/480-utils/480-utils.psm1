@@ -163,3 +163,6 @@ Function New-FullClone([object] $vm, [object] $snapshot, [string] $clone_name, [
         Remove-VM -VM $temp_clone -DeletePermanently -Confirm:$false
     }
 }
+
+
+# Lab 6 content below:
