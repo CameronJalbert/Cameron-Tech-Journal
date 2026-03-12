@@ -166,3 +166,164 @@ Function New-FullClone([object] $vm, [object] $snapshot, [string] $clone_name, [
 
 
 # Lab 6 content below:
+
+# New-Network
+# Creates a standard virtual switch and portgroup on the chosen ESXi host
+Function New-Network([string] $vswitch_name, [string] $portgroup_name, [string] $esxi_host)
+{
+    if (-not $vswitch_name)   { $vswitch_name   = Read-Host "Enter the new vSwitch name" }
+    if (-not $portgroup_name) { $portgroup_name = Read-Host "Enter the new portgroup name" }
+    if (-not $esxi_host)      { $esxi_host      = Read-Host "Enter the ESXi host name or IP" }
+
+    $vmhost = Get-VMHost -Name $esxi_host -ErrorAction Stop
+
+    $existing_switch = Get-VirtualSwitch -VMHost $vmhost -Name $vswitch_name -ErrorAction SilentlyContinue
+    if ($existing_switch)
+    {
+        Write-Host -ForegroundColor Yellow "vSwitch '$vswitch_name' already exists on host '$esxi_host'."
+    }
+    else
+    {
+        Write-Host -ForegroundColor Yellow "Creating vSwitch '$vswitch_name' on '$esxi_host'..."
+        $existing_switch = New-VirtualSwitch -VMHost $vmhost -Name $vswitch_name
+        Write-Host -ForegroundColor Green "vSwitch '$vswitch_name' created successfully."
+    }
+
+    $existing_pg = Get-VirtualPortGroup -VirtualSwitch $existing_switch -Name $portgroup_name -ErrorAction SilentlyContinue
+    if ($existing_pg)
+    {
+        Write-Host -ForegroundColor Yellow "Portgroup '$portgroup_name' already exists on vSwitch '$vswitch_name'."
+    }
+    else
+    {
+        Write-Host -ForegroundColor Yellow "Creating portgroup '$portgroup_name' on '$vswitch_name'..."
+        New-VirtualPortGroup -VirtualSwitch $existing_switch -Name $portgroup_name | Out-Null
+        Write-Host -ForegroundColor Green "Portgroup '$portgroup_name' created successfully."
+    }
+}
+
+# Get-IP
+# Gets the first MAC address and first IPv4 address from a named VM
+Function Get-IP([string] $vm_name)
+{
+    if (-not $vm_name) { $vm_name = Read-Host "Enter the VM name" }
+
+    $vm = Get-VM -Name $vm_name -ErrorAction SilentlyContinue
+    if (-not $vm)
+    {
+        Write-Host -ForegroundColor Red "VM '$vm_name' not found."
+        return $null
+    }
+
+    $adapter = Get-NetworkAdapter -VM $vm | Select-Object -First 1
+    $mac = $null
+    if ($adapter) { $mac = $adapter.MacAddress }
+
+    $ipv4 = $null
+    if ($vm.Guest.IPAddress)
+    {
+        $ipv4 = $vm.Guest.IPAddress | Where-Object { $_ -match '^\d{1,3}(\.\d{1,3}){3}$' } | Select-Object -First 1
+    }
+
+    [pscustomobject]@{
+        VM   = $vm.Name
+        IP   = $ipv4
+        MAC  = $mac
+    }
+}
+
+# Start-480VM
+# Starts one or more VMs by name
+Function Start-480VM([string[]] $vm_names)
+{
+    if (-not $vm_names)
+    {
+        $vm_names = (Read-Host "Enter one or more VM names separated by commas").Split(",") | ForEach-Object { $_.Trim() }
+    }
+
+    foreach ($name in $vm_names)
+    {
+        $vm = Get-VM -Name $name -ErrorAction SilentlyContinue
+        if (-not $vm)
+        {
+            Write-Host -ForegroundColor Red "VM '$name' not found."
+            continue
+        }
+
+        if ($vm.PowerState -eq "PoweredOn")
+        {
+            Write-Host -ForegroundColor Yellow "VM '$name' is already powered on."
+        }
+        else
+        {
+            Write-Host -ForegroundColor Yellow "Starting VM '$name'..."
+            Start-VM -VM $vm -Confirm:$false | Out-Null
+            Write-Host -ForegroundColor Green "VM '$name' started."
+        }
+    }
+}
+
+# Stop-480VM
+# Stops one or more VMs by name
+Function Stop-480VM([string[]] $vm_names)
+{
+    if (-not $vm_names)
+    {
+        $vm_names = (Read-Host "Enter one or more VM names separated by commas").Split(",") | ForEach-Object { $_.Trim() }
+    }
+
+    foreach ($name in $vm_names)
+    {
+        $vm = Get-VM -Name $name -ErrorAction SilentlyContinue
+        if (-not $vm)
+        {
+            Write-Host -ForegroundColor Red "VM '$name' not found."
+            continue
+        }
+
+        if ($vm.PowerState -eq "PoweredOff")
+        {
+            Write-Host -ForegroundColor Yellow "VM '$name' is already powered off."
+        }
+        else
+        {
+            Write-Host -ForegroundColor Yellow "Stopping VM '$name'..."
+            Stop-VM -VM $vm -Confirm:$false | Out-Null
+            Write-Host -ForegroundColor Green "VM '$name' stopped."
+        }
+    }
+}
+
+# Set-Network
+# Sets a VM NIC to a chosen portgroup/network
+Function Set-Network([string] $vm_name, [string] $network_name, [int] $nic_number = 1)
+{
+    if (-not $vm_name)      { $vm_name      = Read-Host "Enter the VM name" }
+    if (-not $network_name) { $network_name = Read-Host "Enter the target network/portgroup name" }
+
+    $vm = Get-VM -Name $vm_name -ErrorAction SilentlyContinue
+    if (-not $vm)
+    {
+        Write-Host -ForegroundColor Red "VM '$vm_name' not found."
+        return
+    }
+
+    $adapters = Get-NetworkAdapter -VM $vm
+    if (-not $adapters)
+    {
+        Write-Host -ForegroundColor Red "No network adapters found on '$vm_name'."
+        return
+    }
+
+    if ($nic_number -lt 1 -or $nic_number -gt $adapters.Count)
+    {
+        Write-Host -ForegroundColor Red "Invalid NIC number. '$vm_name' has $($adapters.Count) adapter(s)."
+        return
+    }
+
+    $adapter = $adapters[$nic_number - 1]
+
+    Write-Host -ForegroundColor Yellow "Setting NIC $nic_number on '$vm_name' to network '$network_name'..."
+    Set-NetworkAdapter -NetworkAdapter $adapter -NetworkName $network_name -Confirm:$false | Out-Null
+    Write-Host -ForegroundColor Green "NIC $nic_number on '$vm_name' is now connected to '$network_name'."
+}
