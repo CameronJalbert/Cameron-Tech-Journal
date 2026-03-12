@@ -1,0 +1,8 @@
+{
+   "vcenter_server" : "vcenter.cam.local",
+   "vm_folder" : "BASE",
+   "esxi_host"      : "192.168.3.85",
+   "datastore"      : "datastore1",
+   "snapshot_name"  : "Base"
+
+}
