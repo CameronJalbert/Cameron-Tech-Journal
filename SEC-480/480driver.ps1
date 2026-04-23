@@ -1,7 +1,7 @@
 Import-Module '480-utils' -Force 
 # call the banner function 
 480Banner
-
+<#
 $conf =  Get-480Config  -config_path "/home/cam/Cameron-Tech-Journal/SEC-480/480.json"
 480Connect -server $conf.vcenter_server
 Write-Host "Selecting your VM"
@@ -37,3 +37,6 @@ if ($clone_type -eq "linked") {
 } else {
     Write-Host -ForegroundColor Red "Invalid clone type '$clone_type'. Enter 'linked' or 'full'."
 }
+#>
+
+Get-IP

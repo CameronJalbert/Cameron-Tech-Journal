@@ -1,0 +1,16 @@
+vyos:
+  hosts:
+    10.0.17.200:
+      hostname: Blue12-fw
+      lan_ip: 10.0.5.2
+      lan: 10.0.5.0/24
+      dhcp_name_server: 10.0.5.2
+      shared_network: Blue12-Lan
+      dhcp_domain: blue12.local
+      mac: 00:50:56:b7:0d:ac
+
+  vars:
+    ansible_python_interpreter: /usr/bin/python3
+    ansible_connection: network_cli
+    ansible_network_os: vyos
+    ansible_user: vyos
